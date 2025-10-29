@@ -1,0 +1,5 @@
+Encabezado del documento
+Primera línea
+Segunda línea
+Tercera línea
+Final del documento
