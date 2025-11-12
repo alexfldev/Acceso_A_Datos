@@ -11,6 +11,7 @@ public class EjemploBufferedReader {
         //Contador de líneas
         int numLinea = 0;
 
+
         //Buffered Reader envuelve al objeto FileReader para añadir Buffer, se cierra sólo gracias al try-catch
         try(BufferedReader br = new BufferedReader(new FileReader("src/SegundaPractica/entrada.txt"))) {
             while ((linea = br.readLine()) != null) {
