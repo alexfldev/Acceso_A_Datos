@@ -1,9 +1,13 @@
-
 package EjerciciosSegundaPractica;
 
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+// Importaciones necesarias para Files.move
+import java.nio.file.FileSystemException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Enumeración requerida para los niveles de log.
@@ -20,10 +24,6 @@ public class SistemaDeLog {
     private long tamanoMaximo; // en bytes
     private int numeroRotacion;
 
-    /**
-     * Buena práctica: Definir el formateador de fecha como una constante estática
-     * para reutilizarlo y no crearlo en cada escritura.
-     */
     private static final DateTimeFormatter FORMATO_FECHA =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -33,7 +33,7 @@ public class SistemaDeLog {
      * @param tamanoMaximo El tamaño máximo en bytes antes de rotar.
      */
     public SistemaDeLog(String archivoLog, long tamanoMaximo) {
-        // Buena práctica: Validar parámetros en el constructor
+        // Validar parámetros
         if (archivoLog == null || archivoLog.trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre del archivo no puede ser nulo o vacío.");
         }
@@ -43,7 +43,7 @@ public class SistemaDeLog {
 
         this.archivoLog = archivoLog;
         this.tamanoMaximo = tamanoMaximo;
-        this.numeroRotacion = 0; // Inicializamos el contador de rotaciones
+        this.numeroRotacion = 0;
     }
 
     /**
@@ -59,50 +59,56 @@ public class SistemaDeLog {
         rotarSiNecesario();
 
         // 2. Preparar la línea de log
-        // Buena práctica: Formato de fecha ISO 8601
         String fechaActualFormateada = LocalDateTime.now().format(FORMATO_FECHA);
         String lineaAEscribir = String.format("[%s] [%s] %s",
                 fechaActualFormateada, nivel, mensaje);
 
         // 3. Escribir en el archivo
-        // Buenas prácticas: Usar try-with-resources y BufferedWriter
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(this.archivoLog, true))) {
             bw.write(lineaAEscribir);
             bw.newLine();
-            bw.flush(); // Buena práctica: flush() después de escritura crítica
+            bw.flush();
         }
 
         // Requisito del Caso de Uso: Mostrar en consola
         System.out.println("Log escrito: " + mensaje);
     }
 
-
+    /**
+     * Verifica si el archivo debe rotarse y ejecuta la rotación
+     * (Versión corregida con Files.move)
+     * @return true si se realizó la rotación
+     * @throws IOException si hay error en la rotación
+     */
     private boolean rotarSiNecesario() throws IOException {
         long tamanoActual = obtenerTamanoLog();
 
         if (tamanoActual >= this.tamanoMaximo) {
-            // Se superó el tamaño, hay que rotar
-            this.numeroRotacion++; // Incrementamos el contador
+            this.numeroRotacion++;
 
-            File archivoOriginal = new File(this.archivoLog);
-            File archivoRenombrado = new File(this.archivoLog + "." + this.numeroRotacion);
+            // Usar java.nio.file.Path
+            java.nio.file.Path archivoOriginalPath = Paths.get(this.archivoLog);
+            java.nio.file.Path archivoRenombradoPath = Paths.get(this.archivoLog + "." + this.numeroRotacion);
 
-            // Intentamos renombrar el archivo actual
-            if (archivoOriginal.renameTo(archivoRenombrado)) {
-                // Requisito del Caso de Uso: Mostrar en consola
-                System.out.println("ROTACIÓN: " + this.archivoLog + " renombrado a " + archivoRenombrado.getName());
+            try {
+                // Usar Files.move() en lugar de renameTo()
+                Files.move(archivoOriginalPath, archivoRenombradoPath, StandardCopyOption.REPLACE_EXISTING);
+
+                System.out.println("ROTACIÓN: " + this.archivoLog + " renombrado a " + archivoRenombradoPath.getFileName().toString());
                 return true;
-            } else {
-                // Si el renombrado falla
-                System.err.println("Error: No se pudo rotar el archivo log: " + this.archivoLog);
-                // Revertimos el contador si no se pudo renombrar
-                this.numeroRotacion--;
+
+            } catch (FileSystemException e) {
+                System.err.println("Error: No se pudo rotar el archivo (probablemente sigue en uso): " + e.getMessage());
+                this.numeroRotacion--; // Revertir contador
+                return false;
+            } catch (IOException e) {
+                System.err.println("Error de E/S al rotar el archivo log: " + e.getMessage());
+                this.numeroRotacion--; // Revertir contador
                 return false;
             }
         }
 
-        // No fue necesario rotar
-        return false;
+        return false; // No fue necesario rotar
     }
 
     /**
@@ -114,11 +120,9 @@ public class SistemaDeLog {
     private long obtenerTamanoLog() {
         File archivo = new File(this.archivoLog);
 
-        // Comprobamos si el archivo existe y es un archivo
         if (archivo.exists() && archivo.isFile()) {
             return archivo.length();
         } else {
-            // Si no existe, su tamaño es 0
             return 0;
         }
     }
