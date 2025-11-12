@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 /**
+ *
  * Enumeración requerida para los niveles de log.
  */
 enum NivelLog {
