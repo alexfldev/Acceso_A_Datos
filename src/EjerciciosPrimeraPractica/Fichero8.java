@@ -12,44 +12,80 @@ Practica: list(), isFile(), isDirectory(), toURI().
 */
 public class Fichero8 {
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        System.out.println("***EXPLORADOR DE CARPETAS***");
-        explorarCarpeta(sc);
-        sc.close();
+        // Usamos try-with-resources para que el Scanner se cierre solo
+        try (Scanner sc = new Scanner(System.in)) {
+            System.out.println("*** EXPLORADOR DE CARPETAS ***");
+            explorarRuta(sc); // Cambiamos el nombre para que sea más genérico
+        }
     }
 
-    public static void explorarCarpeta(Scanner sc)  {
-        System.out.print("Introduce la ruta del directorio que quieras explorar: ");
+    /**
+     * Pide una ruta y la explora, sea un archivo o directorio.
+     */
+    public static void explorarRuta(Scanner sc) {
+        System.out.print("Introduce la ruta del directorio o archivo que quieras explorar: ");
         String rutaCarpeta = sc.nextLine();
         File ruta = new File(rutaCarpeta);
-        if (ruta.exists()) {
-            for (String nombreElemento  : ruta.list()) {
-                File elementoEnArray = new File(ruta, nombreElemento);
-                analizarElemento(ruta, elementoEnArray, nombreElemento);
+
+        if (!ruta.exists()) {
+            System.err.println("Error: La ruta introducida no existe en el equipo.");
+            return;
+        }
+
+        // CORRECCIÓN: Comprobamos si es un directorio
+        if (ruta.isDirectory()) {
+            System.out.println("--- Explorando Directorio: " + ruta.getAbsolutePath() + " ---");
+            String[] listaNombres = ruta.list();
+
+            if (listaNombres != null && listaNombres.length > 0) {
+                for (String nombreElemento : listaNombres) {
+                    File elemento = new File(ruta, nombreElemento);
+                    analizarElemento(elemento); // Llamada al método simplificado
+                }
+            } else {
+                System.out.println("El directorio está vacío.");
             }
-            convertirAURI(ruta);
+
+            // CORRECCIÓN: Añadimos el caso de que sea un archivo
+        } else if (ruta.isFile()) {
+            System.out.println("--- Analizando Archivo: " + ruta.getAbsolutePath() + " ---");
+            analizarElemento(ruta); // Analiza solo ese archivo
+
         } else {
-            System.out.println("La ruta introducida es errónea o no existe en el equipo");
+            System.err.println("Error: La ruta no es ni un archivo ni un directorio.");
+        }
+
+        // Convertimos a URI al final
+        convertirAURI(ruta);
+    }
+
+    /**
+     * Analiza un elemento (archivo o directorio) y muestra su información.
+     * @param elemento El File a analizar.
+     */
+    public static void analizarElemento(File elemento) {
+        if (elemento.isFile()) {
+            long pesoArchivoEnBytes = elemento.length();
+            System.out.println("[Archivo] " + elemento.getName() + " (Tamaño: " + pesoArchivoEnBytes + " bytes)");
+
+        } else if (elemento.isDirectory()) {
+            String[] elementosInternos = elemento.list();
+            int numElementos = (elementosInternos != null) ? elementosInternos.length : 0;
+            System.out.println("[Directorio] " + elemento.getName() + " (Contiene: " + numElementos + " elementos)");
+
         }
     }
 
-    public static void analizarElemento(File ruta, File elementoEnArray, String nombreElemento) {
-        if (elementoEnArray.isFile()) {
-            long pesoArchivoEnBytes = elementoEnArray.length();
-            System.out.println("Archivo: " + nombreElemento + " [Peso del archivo: " + pesoArchivoEnBytes + " bytes]");
-        } else if (elementoEnArray.isDirectory()) {
-            String[] elementos = elementoEnArray.list();
-            System.out.println("Directorio: " + nombreElemento + " [Número de elementos del directorio: " + (elementos != null ? elementos.length : 0) + "]");
-        }
-    }
-
+    /**
+     * Muestra la representación URI de una ruta.
+     */
     public static void convertirAURI(File ruta) {
-        System.out.println("Intentanto convertir la ruta '" + ruta + "' a URI");
+        System.out.println("\n--- Conversión a URI ---");
         try {
             URI uri = ruta.toURI();
-            System.out.println("Ruta convertida a URI correctamente: " + uri.toString());
+            System.out.println("Ruta: " + ruta.getPath());
+            System.out.println("URI:  " + uri.toString());
         } catch (Exception e) {
-            // Mensaje de error en caso de fallo de conversión
             System.err.println("Error al intentar convertir la ruta a URI: " + e.getMessage());
         }
     }

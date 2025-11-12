@@ -19,32 +19,34 @@ Requisitos: cada función independiente, uso de Scanner, switch, do-while, manej
  */
 public class Fichero9 {
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        mostrarMenu(sc);
+        // CORRECCIÓN: Usamos try-with-resources para que el Scanner se cierre solo
+        try (Scanner sc = new Scanner(System.in)) {
+            mostrarMenu(sc);
+        }
     }
 
     public static void mostrarMenu(Scanner sc) {
         int op = 0;
         do {
-            System.out.println("***MENÚ DEL ASISTENTE***");
-            System.out.println();
+            System.out.println("\n*** MENÚ DEL ASISTENTE DE ARCHIVOS ***");
             System.out.println("1. Verificar archivo");
             System.out.println("2. Explorar carpeta");
             System.out.println("3. Crear carpeta");
             System.out.println("4. Crear archivo");
             System.out.println("5. Trabajar con URIs");
             System.out.println("6. Salir");
-            System.out.print("Introduce la opción a realizar(1 - 6): ");
+            System.out.print("Introduce la opción a realizar (1 - 6): ");
 
             try {
                 op = sc.nextInt();
-                sc.nextLine();
             } catch (InputMismatchException e) {
-                System.out.println("Entrada inválida. Por favor, introduce un número.");
-                sc.nextLine();
-                op = 0;
-                continue;
+                System.err.println("Error: Entrada inválida. Por favor, introduce un número.");
+                op = 0; // Reseteamos 'op' para que el bucle continúe
+            } finally {
+                sc.nextLine(); // Limpiamos el buffer del scanner
             }
+
+            System.out.println(); // Salto de línea para limpiar la salida
 
             switch (op) {
                 case 1: verificarArchivo(sc); break;
@@ -52,27 +54,31 @@ public class Fichero9 {
                 case 3: crearCarpeta(sc); break;
                 case 4: crearArchivo(sc); break;
                 case 5: trabajarConURI(sc); break;
-                case 6: System.out.println("Saliendo del menú"); break;
-                default: System.out.println("El número introducido no es ninguna de las opciones del menú, prueba de nuevo");
+                case 6: System.out.println("Saliendo del menú..."); break;
+                default:
+                    System.err.println("El número introducido no es ninguna de las opciones del menú, prueba de nuevo.");
             }
+
             if (op != 6) {
-                System.out.println("Presiona Enter para continuar...");
+                System.out.println("\n--- Presiona Enter para continuar ---");
                 sc.nextLine();
             }
         } while(op != 6);
     }
 
     public static void verificarArchivo(Scanner sc) {
-        System.out.print("Introduce la rutra completa al archivo con este incluido: ");
+        System.out.print("Introduce la ruta completa al archivo: ");
         String ruta = sc.nextLine();
         File rutaArchivo = new File(ruta);
+
         if (!rutaArchivo.exists()) {
-            System.out.println("La ruta que has pasado no existe. inténtalo de nuevo");
+            System.err.println("Error: La ruta que has pasado no existe.");
         } else if (rutaArchivo.isDirectory()) {
-            System.out.println("La ruta que has pasado no es un archivo sino un directorio");
+            System.err.println("Error: La ruta que has pasado es un directorio, no un archivo.");
         } else if (rutaArchivo.isFile()) {
             long pesoArchivoEnBytes = rutaArchivo.length();
-            System.out.println("El archivo si existe en la ruta indicada, tiene un peso de " + pesoArchivoEnBytes + " bytes");
+            System.out.println("Éxito: El archivo existe en la ruta indicada.");
+            System.out.println("Peso: " + pesoArchivoEnBytes + " bytes.");
         }
     }
 
@@ -80,25 +86,34 @@ public class Fichero9 {
         System.out.print("Introduce la ruta del directorio que quieras explorar: ");
         String rutaDirectorio = sc.nextLine();
         File ruta = new File(rutaDirectorio);
-        if (ruta.exists() && ruta.isDirectory()) {
+
+        if (!ruta.exists()) {
+            System.err.println("Error: La ruta introducida no existe en el equipo.");
+        } else if (!ruta.isDirectory()) {
+            System.err.println("Error: La ruta introducida es un archivo, no un directorio.");
+        } else {
+            System.out.println("Contenido de: " + ruta.getAbsolutePath());
             String[] elementos = ruta.list();
-            if (elementos != null) {
+
+            // CORRECCIÓN: Comprobamos si se pudo leer Y si tiene contenido
+            if (elementos != null && elementos.length > 0) {
                 for (String nombreElemento  : elementos) {
                     File elementoEnArray = new File(ruta, nombreElemento);
                     if (elementoEnArray.isFile()) {
                         long pesoArchivoEnBytes = elementoEnArray.length();
-                        System.out.println("Archivo: " + nombreElemento + " [Peso del archivo: " + pesoArchivoEnBytes + " bytes]");
+                        System.out.println("[Archivo] " + nombreElemento + " (" + pesoArchivoEnBytes + " bytes)");
                     } else if (elementoEnArray.isDirectory()) {
                         String[] subElementos = elementoEnArray.list();
                         int numElementos = subElementos != null ? subElementos.length : 0;
-                        System.out.println("Directorio: " + nombreElemento + " [Número de elementos del directorio: " + numElementos + "]");
+                        System.out.println("[Directorio] " + nombreElemento + " (" + numElementos + " elementos)");
                     }
                 }
+            } else if (elementos == null) {
+                System.err.println("Error: No se pudo listar el contenido (posiblemente por falta de permisos).");
             } else {
-                System.out.println("No se pudieron listar los contenidos del directorio (posiblemente por falta de permisos).");
+                // elementos.length == 0
+                System.out.println("El directorio está vacío.");
             }
-        } else {
-            System.out.println("La ruta introducida es errónea o no existe en el equipo o no es un directorio");
         }
     }
 
@@ -106,14 +121,16 @@ public class Fichero9 {
         System.out.print("Introduce la ruta de la carpeta que quieres crear: ");
         String rutaCarpeta = sc.nextLine();
         File ruta = new File(rutaCarpeta);
-        if (!ruta.exists()) {
-            if(ruta.mkdirs()) {
-                System.out.println("Ruta creada correctamente: " + ruta.getAbsolutePath());
-            } else {
-                System.out.println("Error al crear la ruta. Asegúrate de que la carpeta padre existe.");
-            }
+
+        if (ruta.exists()) {
+            System.err.println("Error: La ruta ya existe (sea archivo o carpeta).");
         } else {
-            System.out.println("La ruta ya existe o es un archivo existente");
+            // Usamos mkdirs() para crear carpetas padre si es necesario
+            if (ruta.mkdirs()) {
+                System.out.println("Éxito: Carpeta(s) creada(s) en: " + ruta.getAbsolutePath());
+            } else {
+                System.err.println("Error: No se pudo crear la carpeta. Comprueba los permisos.");
+            }
         }
     }
 
@@ -121,23 +138,36 @@ public class Fichero9 {
         System.out.print("Introduce la ruta completa del archivo que quieres crear: ");
         String rutaArchivo = sc.nextLine();
         File ruta = new File(rutaArchivo);
-        File carpetPadreRuta = ruta.getParentFile();
-        if (!carpetPadreRuta.exists()) {
-            if(carpetPadreRuta.mkdirs()) {
-                System.out.println("La ruta no existía pero se ha creado correctamente: " + carpetPadreRuta.getAbsolutePath());
-                System.out.println("Creando el archivo en la nueva ruta");
-            } else {
-                System.out.println("La ruta no se ha podido crear");
-            }
-        } else {
-            System.out.println("La ruta ya existía, creando el archivo en la ruta");
+
+        // CORRECCIÓN: Lógica de creación más segura
+        if (ruta.exists()) {
+            System.err.println("Error: El archivo (o carpeta) ya existe en esa ruta.");
+            return;
         }
+
+        // Aseguramos que el directorio padre exista
+        File carpetaPadre = ruta.getParentFile();
+        if (carpetaPadre != null && !carpetaPadre.exists()) {
+            System.out.println("La ruta padre no existe. Creando directorios...");
+            if (carpetaPadre.mkdirs()) {
+                System.out.println("Ruta padre creada en: " + carpetaPadre.getAbsolutePath());
+            } else {
+                System.err.println("Error: No se pudo crear la ruta padre. No se creará el archivo.");
+                return; // Salimos si no se puede crear la ruta
+            }
+        }
+
+        // Ahora que sabemos que la ruta padre existe, creamos el archivo
         try {
             if (ruta.createNewFile()) {
-                System.out.println("Archivo creado: " + ruta.getAbsolutePath());
+                System.out.println("Éxito: Archivo creado en: " + ruta.getAbsolutePath());
+            } else {
+                // Esto es raro si ya comprobamos exists(), pero es una seguridad extra
+                System.err.println("Error: El archivo no se pudo crear (razón desconocida).");
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            // CORRECCIÓN: Manejamos la excepción para que el menú no se rompa
+            System.err.println("Error de E/S al crear el archivo: " + e.getMessage());
         }
     }
 
@@ -145,11 +175,18 @@ public class Fichero9 {
         System.out.print("Introduce la ruta que quieres pasar a URI: ");
         String rutaUri = sc.nextLine();
         File ruta = new File(rutaUri);
+
+        if (!ruta.exists()) {
+            System.err.println("Aviso: La ruta no existe, pero se intentará convertir a URI.");
+        }
+
         try {
             URI uri = ruta.toURI();
-            System.out.println("Ruta convertida a URI correctamente: " + uri.toString());
+            System.out.println("Ruta: " + ruta.getPath());
+            System.out.println("URI:  " + uri.toString());
         } catch (Exception e) {
-            System.out.println("Error al intentar convertir la ruta a URI: " + e.getMessage());
+            // CORRECCIÓN: Usamos System.err para errores
+            System.err.println("Error al intentar convertir la ruta a URI: " + e.getMessage());
         }
     }
 }
